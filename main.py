@@ -3,11 +3,13 @@ import telebot
 import requests
 import sqlite3
 
-# --- 1. CONFIGURAÇÕES INICIAIS (Sempre no topo) ---
+# --- 1. CONFIGURAÇÕES ---
 TOKEN = "8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho"
-bot = telebot.TeleBot(TOKEN)
-ADMIN_ID = 8647771753  # Seu ID correto
+ADMIN_ID = 8647771753
+# Certifique-se de que a variável GRIZZLY_API_KEY está no painel do Railway
 GRIZZLY_KEY = os.getenv("GRIZZLY_API_KEY")
+
+bot = telebot.TeleBot(TOKEN)
 
 # --- 2. BANCO DE DADOS ---
 def init_db():
@@ -18,6 +20,14 @@ def init_db():
     conn.commit()
     conn.close()
 
+def get_saldo(user_id):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT saldo FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else 0
+
 def add_saldo(user_id, valor):
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -26,61 +36,95 @@ def add_saldo(user_id, valor):
     conn.commit()
     conn.close()
 
-# --- 3. COMANDOS DO BOT ---
+# --- 3. COMANDOS PRINCIPAIS ---
 
 @bot.message_handler(commands=['start'])
 def start(message):
     init_db()
-    bot.reply_to(message, "🚀 Bot Online! Use o menu ou fale com o suporte.")
+    user_id = message.from_user.id
+    add_saldo(user_id, 0) # Garante que o usuário existe no banco
+    
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton("📲 Comprar Número", callback_data="comprar_num"))
+    markup.add(telebot.types.InlineKeyboardButton("💰 Ver Saldo", callback_data="ver_saldo"))
+    markup.add(telebot.types.InlineKeyboardButton("💳 Recarregar", callback_data="recarregar"))
+    
+    bot.send_message(message.chat.id, "👋 Bem-vindo ao Bot SMS Virtual!\nO que deseja fazer?", reply_markup=markup)
 
 @bot.message_handler(commands=['setar'])
 def setar(message):
     if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, f"❌ Acesso negado. Seu ID: {message.from_user.id}")
         return
     try:
-        partes = message.text.split()
-        if len(partes) == 3:
-            target_id = int(partes[1])
-            valor = float(partes[2])
-            add_saldo(target_id, valor)
-            bot.reply_to(message, f"✅ Adicionado €{valor} ao ID {target_id}")
+        _, target_id, valor = message.text.split()
+        add_saldo(int(target_id), float(valor))
+        bot.reply_to(message, f"✅ €{valor} adicionados ao ID {target_id}")
+    except:
+        bot.reply_to(message, "⚠️ Use: `/setar ID VALOR`", parse_mode="Markdown")
+
+# --- 4. CALLBACKS (BOTÕES) ---
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    user_id = call.from_user.id
+    
+    if call.data == "ver_saldo":
+        saldo = get_saldo(user_id)
+        bot.answer_callback_query(call.id)
+        bot.send_message(call.message.chat.id, f"💎 Seu saldo atual: €{saldo:.2f}")
+
+    elif call.data == "recarregar":
+        texto = (
+            "💳 *RECARGA VIA REVOLUT*\n\n"
+            "1️⃣ Envie o valor para: `revolut.me/seuusuario` (Mude no código)\n"
+            f"2️⃣ Na nota do pagamento coloque seu ID: `{user_id}`\n"
+            "3️⃣ Envie o comprovante para o suporte."
+        )
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton("👨‍💻 Suporte", url="https://t.me/seu_usuario"))
+        bot.edit_message_text(texto, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+    elif call.data == "comprar_num":
+        # Menu simples de países (Exemplo: Brasil=73, Portugal=19)
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton("🇧🇷 Brasil - €1.50", callback_data="buy_73"))
+        markup.add(telebot.types.InlineKeyboardButton("🇵🇹 Portugal - €2.00", callback_data="buy_19"))
+        bot.edit_message_text("Selecione o país:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data.startswith("buy_"):
+        pais_id = call.data.split("_")[1]
+        saldo = get_saldo(user_id)
+        preco = 1.50 # Ajuste seu preço aqui
+        
+        if saldo >= preco:
+            url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={GRIZZLY_KEY}&action=getNumber&service=tg&country={pais_id}"
+            res = requests.get(url).text
+            if "ACCESS_NUMBER" in res:
+                _, order_id, numero = res.split(":")
+                add_saldo(user_id, -preco)
+                
+                markup = telebot.types.InlineKeyboardMarkup()
+                markup.add(telebot.types.InlineKeyboardButton("🔄 Checar SMS", callback_data=f"chk_{order_id}"))
+                bot.edit_message_text(f"✅ Número: `{numero}`\nID: `{order_id}`\nAguardando SMS...", 
+                                      call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+            else:
+                bot.answer_callback_query(call.id, f"Erro Grizzly: {res}", show_alert=True)
         else:
-            bot.reply_to(message, "⚠️ Use: /setar ID VALOR")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Erro: {e}")
+            bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
 
-@bot.callback_query_handler(func=lambda call: call.data == "recarregar")
-def menu_revolut(call):
-    # Substitua pelo seu link real do Revolut
-    seu_link_revolut = "https://revolut.me/seuusuario" 
-    
-    texto = (
-        "💳 *RECARGA VIA REVOLUT*\n\n"
-        "Siga os passos abaixo para adicionar saldo:\n\n"
-        "1️⃣ Clique no botão abaixo para abrir o link.\n"
-        "2️⃣ Envie o valor desejado (Mínimo €1.00).\n"
-        "3️⃣ No campo de *Nota/Mensagem* do Revolut, coloque seu ID:\n"
-        f"👉 `{call.from_user.id}`\n\n"
-        "⚠️ *Importante:* Após o pagamento, envie o comprovante (print) para o suporte."
-    )
+    elif call.data.startswith("chk_"):
+        order_id = call.data.split("_")[1]
+        url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={GRIZZLY_KEY}&action=getStatus&id={order_id}"
+        res = requests.get(url).text
+        
+        if "STATUS_OK" in res:
+            codigo = res.split(":")[1]
+            bot.edit_message_text(f"✅ Seu código é: `{codigo}`", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+        else:
+            bot.answer_callback_query(call.id, "⏳ Ainda não chegou...", show_alert=False)
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    btn_pagar = telebot.types.InlineKeyboardButton("🔗 Abrir Revolut", url=revolut.me/goncalom35)
-    btn_suporte = telebot.types.InlineKeyboardButton("👨‍💻 Enviar Comprovante", url="https://t.me/portugam50")
-    
-    markup.add(btn_pagar)
-    markup.add(btn_suporte)
-
-    bot.edit_message_text(texto, 
-                          call.message.chat.id, 
-                          call.message.message_id, 
-                          reply_markup=markup, 
-                          parse_mode="Markdown") 
-
-
-# --- 4. LIGAR O BOT ---
+# --- 5. EXECUÇÃO ---
 if __name__ == "__main__":
-    print("Iniciando o bot...")
     init_db()
+    print("Bot rodando com sucesso!")
     bot.infinity_polling()
