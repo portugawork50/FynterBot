@@ -50,6 +50,35 @@ def setar(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Erro: {e}")
 
+@bot.callback_query_handler(func=lambda call: call.data == "recarregar")
+def menu_revolut(call):
+    # Substitua pelo seu link real do Revolut
+    seu_link_revolut = "https://revolut.me/seuusuario" 
+    
+    texto = (
+        "💳 *RECARGA VIA REVOLUT*\n\n"
+        "Siga os passos abaixo para adicionar saldo:\n\n"
+        "1️⃣ Clique no botão abaixo para abrir o link.\n"
+        "2️⃣ Envie o valor desejado (Mínimo €1.00).\n"
+        "3️⃣ No campo de *Nota/Mensagem* do Revolut, coloque seu ID:\n"
+        f"👉 `{call.from_user.id}`\n\n"
+        "⚠️ *Importante:* Após o pagamento, envie o comprovante (print) para o suporte."
+    )
+
+    markup = telebot.types.InlineKeyboardMarkup()
+    btn_pagar = telebot.types.InlineKeyboardButton("🔗 Abrir Revolut", url=revolut.me/goncalom35)
+    btn_suporte = telebot.types.InlineKeyboardButton("👨‍💻 Enviar Comprovante", url="https://t.me/portugam50")
+    
+    markup.add(btn_pagar)
+    markup.add(btn_suporte)
+
+    bot.edit_message_text(texto, 
+                          call.message.chat.id, 
+                          call.message.message_id, 
+                          reply_markup=markup, 
+                          parse_mode="Markdown") 
+
+
 # --- 4. LIGAR O BOT ---
 if __name__ == "__main__":
     print("Iniciando o bot...")
