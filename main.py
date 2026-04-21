@@ -1,29 +1,52 @@
+import os
+import telebot
+import requests
+import sqlite3
+
+# 1. PRIMEIRO define o Token e cria o bot
+TOKEN = "8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho"
+bot = telebot.TeleBot(TOKEN)
+
+# 2. Define o ID de Administrador (O SEU ID)
+ADMIN_ID = 123456789  # <--- MUDE PARA O SEU ID REAL
+
+# 3. Define a Key do Grizzly
+GRIZZLY_KEY = os.getenv("GRIZZLY_API_KEY")
+
+# 4. Funções de Banco de Dados
+def init_db():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+                    (id INTEGER PRIMARY KEY, saldo REAL DEFAULT 0)''')
+    conn.commit()
+    conn.close()
+
+def add_saldo(user_id, valor):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO users (id, saldo) VALUES (?, 0)", (user_id,))
+    cursor.execute("UPDATE users SET saldo = saldo + ? WHERE id = ?", (valor, user_id))
+    conn.commit()
+    conn.close()
+
+# 5. AGORA sim vêm os comandos (handlers)
+@bot.message_handler(commands=['start'])
+def start(message):
+    init_db()
+    bot.reply_to(message, "🚀 Bot Online! Use o menu ou fale com o suporte.")
+
 @bot.message_handler(commands=['setar'])
-def set_saldo_manual(message):
-    # Verifica se quem enviou o comando é você
-    if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Você não tem permissão para usar este comando.")
-        return
-
-    try:
-        # O comando deve ser: /setar ID VALOR
-        # Exemplo: /setar 987654321 10.50
-        dados = message.text.split()
-        if len(dados) != 3:
-            bot.reply_to(message, "⚠️ Use o formato: `/setar ID VALOR`", parse_mode="Markdown")
-            return
-
-        target_id = int(dados[1])
-        valor = float(dados[2])
-
-        add_saldo(target_id, valor)
-        
-        bot.send_message(message.chat.id, f"✅ Sucesso! Adicionado € {valor:.2f} ao usuário {target_id}.")
-        # Avisa o cliente automaticamente
+def setar(message):
+    if message.from_user.id == ADMIN_ID:
         try:
-            bot.send_message(target_id, f"💰 Seu pagamento foi confirmado! Adicionamos € {valor:.2f} ao seu saldo.")
+            _, target_id, valor = message.text.split()
+            add_saldo(int(target_id), float(valor))
+            bot.reply_to(message, "✅ Saldo atualizado!")
         except:
-            pass # Se o cliente bloqueou o bot, ignora o erro
+            bot.reply_to(message, "❌ Erro. Use: /setar ID VALOR")
 
-    except Exception as e:
-        bot.reply_to(message, f"❌ Erro ao processar: {e}")
+# 6. FINAL: O comando para o bot ficar ligado
+print("Bot ligando...")
+init_db()
+bot.infinity_polling()
