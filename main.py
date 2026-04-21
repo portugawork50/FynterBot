@@ -76,12 +76,12 @@ def callback_handler(call):
     elif call.data == "recarregar":
         texto = (
             "💳 *RECARGA VIA REVOLUT*\n\n"
-            "1️⃣ Envie o valor para: `revolut.me/seuusuario` (Mude no código)\n"
+            "1️⃣ Envie o valor para: `revolut.me/goncalom35` (Mude no código)\n"
             f"2️⃣ Na nota do pagamento coloque seu ID: `{user_id}`\n"
             "3️⃣ Envie o comprovante para o suporte."
         )
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("👨‍💻 Suporte", url="https://t.me/seu_usuario"))
+        markup.add(telebot.types.InlineKeyboardButton("👨‍💻 Suporte", url="https://t.me/portugam50"))
         bot.edit_message_text(texto, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
     elif call.data == "comprar_num":
