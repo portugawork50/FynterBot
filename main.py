@@ -87,8 +87,8 @@ def callback_handler(call):
     elif call.data == "comprar_num":
         # Menu simples de países (Exemplo: Brasil=73, Portugal=19)
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("🇧🇷 Brasil - €1.50", callback_data="buy_73"))
-        markup.add(telebot.types.InlineKeyboardButton("🇵🇹 Portugal - €2.00", callback_data="buy_19"))
+        markup.add(telebot.types.InlineKeyboardButton("🇧🇷 Brasil - R$1.50", callback_data="buy_73"))
+        markup.add(telebot.types.InlineKeyboardButton("🇵🇹 Portugal - R$2.00", callback_data="buy_19"))
         bot.edit_message_text("Selecione o país:", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
     elif call.data.startswith("buy_"):
