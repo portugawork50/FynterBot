@@ -2,18 +2,19 @@ import telebot
 from telebot import types
 
 # --- CONFIGURAÇÕES ---
-TOKEN = 'COLE_AQUI_O_TOKEN_DO_BOTFATHER'
-ADMIN_ID = 123456789  # SUBSTITUA pelo seu ID do Telegram para poder usar comandos de admin
+# Substitua pelo Token que o @BotFather te deu
+TOKEN = 'SEU_TOKEN_AQUI' 
+
+# IMPORTANTE: Coloque SEU ID numérico aqui (use o @userinfobot no Telegram para descobrir o seu)
+ADMIN_ID = 000000000  
+
 bot = telebot.TeleBot(TOKEN)
 
-# Banco de dados temporário (em produção, use um arquivo .txt ou SQLite)
+# Banco de dados simples em dicionário (Reinicia se o script parar)
+# Dica: No futuro, use SQLite para não perder os saldos se o PC desligar.
 users_balance = {}
 
-# --- FUNÇÕES AUXILIARES ---
-def get_balance(user_id):
-    return users_balance.get(user_id, 0.0)
-
-# --- COMANDOS DE MENU ---
+# --- MENUS ---
 def main_menu():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     btn1 = types.KeyboardButton("📱 GERAR NÚMERO")
@@ -23,7 +24,7 @@ def main_menu():
     markup.add(btn1, btn2, btn3, btn4)
     return markup
 
-# --- HANDLERS ---
+# --- COMANDOS ---
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -38,7 +39,7 @@ def start(message):
 
 @bot.message_handler(func=lambda message: message.text == "👤 MINHA CONTA")
 def conta(message):
-    saldo = get_balance(message.from_user.id)
+    saldo = users_balance.get(message.from_user.id, 0.0)
     msg = (f"👤 *Suas Informações:*\n\n"
            f"🆔 ID: `{message.from_user.id}`\n"
            f"💰 Saldo: *{saldo:.2f} €*")
@@ -49,22 +50,40 @@ def recarregar(message):
     texto = (
         "🌍 *RECARGA GLOBAL / GLOBAL RECHARGE* 🌍\n\n"
         "🟢 *OPÇÃO 1: USDT (Rede TRC20)*\n"
-        "Método instantâneo e sem fronteiras.\n"
+        "Ideal para pagamentos de qualquer país.\n"
         "🔹 *Endereço:* `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU` \n"
-        "_(Clique no endereço para copiar)_\n\n"
+        "_(Clique no endereço acima para copiar)_\n\n"
         "🔵 *OPÇÃO 2: MB WAY / IBAN (Portugal 🇵🇹)*\n"
-        "Para pagamentos locais, contacte o suporte:\n"
-        "👉 @seu_usuario_do_telegram\n\n"
-        "⚠️ *IMPORTANTE:* Após o envio, mande o comprovativo e o seu ID abaixo para validarmos:\n"
+        "Para pagamentos via MB WAY ou bancos, contacte o suporte:\n"
+        "👉 @seu_usuario_pessoal\n\n"
+        "⚠️ *IMPORTANTE:* Após realizar o pagamento, envie o comprovativo e o seu ID abaixo aqui no suporte:\n"
         f"🆔 *Seu ID:* `{message.from_user.id}`"
     )
     bot.send_message(message.chat.id, texto, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text == "🆘 SUPORTE")
 def suporte(message):
-    bot.send_message(message.chat.id, "Precisa de ajuda? Fale com o administrador: @seu_usuario_do_telegram")
+    bot.send_message(message.chat.id, "Precisa de ajuda? Fale com o nosso administrador: @seu_usuario_pessoal")
 
-@bot.message_handler(func=lambda message: message.text == "📱 GERAR NÚMERO")
-def gerar_numero(message):
-    # Aqui você integraria com a API do provedor de SMS (ex: 5sim, SMS-Activate)
-    bot.send_message(message.chat.id, "Escolha o serviço que deseja ativar: (Em breve integração
+# --- COMANDO DE ADMINISTRADOR PARA ADD SALDO ---
+# Exemplo de uso: /add 12345678 5.00
+@bot.message_handler(commands=['add'])
+def add_balance(message):
+    if message.from_user.id == ADMIN_ID:
+        try:
+            parts = message.text.split()
+            target_id = int(parts[1])
+            amount = float(parts[2])
+            
+            users_balance[target_id] = users_balance.get(target_id, 0.0) + amount
+            
+            bot.send_message(message.chat.id, f"✅ Sucesso! Adicionado {amount}€ ao ID {target_id}.")
+            bot.send_message(target_id, f"🎉 *Saldo Adicionado!*\n\nSua recarga de *{amount}€* foi confirmada e já está disponível.", parse_mode="Markdown")
+        except:
+            bot.reply_to(message, "❌ Erro! Use o formato: `/add ID VALOR` (Ex: /add 12345 10.00)")
+    else:
+        bot.reply_to(message, "🚫 Apenas o dono do bot pode usar este comando.")
+
+# --- INICIALIZAÇÃO ---
+print("🤖 FynterBot está online e aguardando comandos...")
+bot.infinity_polling()
