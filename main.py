@@ -72,7 +72,7 @@ def recarregar(message):
         "_(Toque no endereço para copiar)_\n\n"
         "🔵 *OPÇÃO 2: MB WAY / IBAN (Portugal 🇵🇹)*\n"
         "Envie o comprovativo para o suporte:\n"
-        "👉 @pobrerico__\n\n"
+        "👉 @portugam50\n\n"
         "⚠️ *IMPORTANTE:* Envie o comprovativo e seu ID para validar o saldo:\n"
         f"🆔 *Seu ID:* `{message.from_user.id}`"
     )
@@ -80,7 +80,7 @@ def recarregar(message):
 
 @bot.message_handler(func=lambda message: message.text == "🆘 SUPORTE")
 def suporte(message):
-    bot.send_message(message.chat.id, "Dúvidas ou problemas? Fale com o admin: @pobrerico__")
+    bot.send_message(message.chat.id, "Dúvidas ou problemas? Fale com o admin: @portugam50")
 
 @bot.message_handler(func=lambda message: message.text == "📱 GERAR NÚMERO")
 def gerar_numero(message):
