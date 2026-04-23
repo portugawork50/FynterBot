@@ -4,7 +4,7 @@ import sqlite3
 
 # --- CONFIGURAÇÕES ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
-ADMIN_ID = 914078118  # Seu ID conforme o número de telemóvel nos prints
+ADMIN_ID = 8647771753  # Seu ID corrigido
 bot = telebot.TeleBot(TOKEN)
 
 # --- BANCO DE DADOS (SQLite) ---
@@ -47,11 +47,7 @@ def main_menu():
 def start(message):
     init_db()
     user_id = message.from_user.id
-    conn = sqlite3.connect('bot_database.db')
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO users (id, balance) VALUES (?, 0.0)", (user_id,))
-    conn.commit()
-    conn.close()
+    update_balance(user_id, 0.0) # Apenas para registrar o usuário
     
     msg = (f"Olá {message.from_user.first_name}! 🤖\n\n"
            "Bem-vindo ao *FynterBot*.\n"
@@ -73,21 +69,29 @@ def recarregar(message):
         "🟢 *OPÇÃO 1: USDT (Rede TRC20)*\n"
         "Envie para o endereço abaixo:\n"
         "🔹 `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU` \n"
-        "_(Toque para copiar)_\n\n"
+        "_(Toque no endereço para copiar)_\n\n"
         "🔵 *OPÇÃO 2: MB WAY / IBAN (Portugal 🇵🇹)*\n"
-        "Fale com o nosso suporte:\n"
-        "👉 @fynter_bot\n\n"
-        "⚠️ *IMPORTANTE:* Envie o comprovativo e seu ID aqui no suporte:\n"
+        "Envie o comprovativo para o suporte:\n"
+        "👉 @pobrerico__\n\n"
+        "⚠️ *IMPORTANTE:* Envie o comprovativo e seu ID para validar o saldo:\n"
         f"🆔 *Seu ID:* `{message.from_user.id}`"
     )
     bot.send_message(message.chat.id, texto, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text == "🆘 SUPORTE")
 def suporte(message):
-    bot.send_message(message.chat.id, "Dúvidas ou problemas com recarga? @fynter_bot")
+    bot.send_message(message.chat.id, "Dúvidas ou problemas? Fale com o admin: @pobrerico__")
+
+@bot.message_handler(func=lambda message: message.text == "📱 GERAR NÚMERO")
+def gerar_numero(message):
+    saldo = get_balance(message.from_user.id)
+    if saldo <= 0:
+        bot.send_message(message.chat.id, "❌ Você não tem saldo suficiente. Recarregue para gerar números.")
+    else:
+        bot.send_message(message.chat.id, "🚀 Escolha o serviço: (Integração com API em breve!)")
 
 # --- COMANDO DE ADMIN PARA ADICIONAR SALDO ---
-# Uso: /add 123456 10.50
+# Uso: /add ID VALOR
 @bot.message_handler(commands=['add'])
 def add_balance_admin(message):
     if message.from_user.id == ADMIN_ID:
@@ -99,12 +103,12 @@ def add_balance_admin(message):
             bot.send_message(message.chat.id, f"✅ Adicionado {amount}€ ao usuário {target_id}")
             bot.send_message(target_id, f"🎉 *Recarga Confirmada!*\nForam adicionados *{amount}€* ao seu saldo.", parse_mode="Markdown")
         except:
-            bot.reply_to(message, "Use: /add ID VALOR")
+            bot.reply_to(message, "❌ Erro! Use: `/add ID VALOR` (Ex: /add 8647771753 10.00)")
     else:
-        bot.reply_to(message, "🚫 Acesso negado.")
+        bot.reply_to(message, "🚫 Acesso negado. Apenas o administrador pode usar este comando.")
 
 # --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
     init_db()
-    print("🤖 FynterBot Online com Sucesso!")
+    print("🤖 FynterBot Online!")
     bot.infinity_polling()
