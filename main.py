@@ -50,24 +50,33 @@ def menu_principal():
 def welcome(message):
     init_db()
     update_balance(message.from_user.id, 0)
-    bot.send_message(message.chat.id, f"🌟 *FynterBot Online!* 🌟\nOlá {message.from_user.first_name}, escolhe uma opção:", reply_markup=menu_principal(), parse_mode="Markdown")
+    texto = (
+        f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
+        f"🛡️ _Ativações SMS rápidas e automáticas._\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Inglaterra e EUA com Stock Máximo\n"
+        f"👤 Suporte: @portugam50\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"👇 *Escolha uma opção:* "
+    )
+    bot.send_message(message.chat.id, texto, reply_markup=menu_principal(), parse_mode="Markdown")
 
-# --- LISTA DE PAÍSES CORRIGIDA ---
+# --- LISTA DE PAÍSES (COM INGLATERRA) ---
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    # Adicionando os botões manualmente para garantir que aparecem
-    btn1 = types.InlineKeyboardButton("🇬🇧 Inglaterra", callback_data="p_england")
-    btn2 = types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="p_portugal")
-    btn3 = types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="p_brazil")
-    btn4 = types.InlineKeyboardButton("🇺🇸 EUA", callback_data="p_usa")
-    btn5 = types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france")
-    btn6 = types.InlineKeyboardButton("🇪🇸 Espanha", callback_data="p_spain")
-    btn7 = types.InlineKeyboardButton("🇦🇴 Angola", callback_data="p_angola")
-    btn8 = types.InlineKeyboardButton("🇩🇪 Alemanha", callback_data="p_germany")
-    
-    markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8)
-    bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS DO NÚMERO:*", reply_markup=markup, parse_mode="Markdown")
+    # Botões organizados
+    markup.add(
+        types.InlineKeyboardButton("🇬🇧 Inglaterra", callback_data="p_england"),
+        types.InlineKeyboardButton("🇺🇸 EUA", callback_data="p_usa"),
+        types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="p_portugal"),
+        types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="p_brazil"),
+        types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france"),
+        types.InlineKeyboardButton("🇪🇸 Espanha", callback_data="p_spain"),
+        types.InlineKeyboardButton("🇦🇴 Angola", callback_data="p_angola"),
+        types.InlineKeyboardButton("🇩🇪 Alemanha", callback_data="p_germany")
+    )
+    bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("p_"))
 def escolher_servico(call):
@@ -77,7 +86,8 @@ def escolher_servico(call):
         types.InlineKeyboardButton("💬 WhatsApp - 1.50€", callback_data=f"buy_{pais}_whatsapp"),
         types.InlineKeyboardButton("✈️ Telegram - 1.20€", callback_data=f"buy_{pais}_telegram")
     )
-    bot.edit_message_text(f"📍 País: *{pais.upper()}*\n🚀 Escolha o serviço:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+    bot.edit_message_text(f"📍 País: *{pais.upper()}*\n🚀 *Escolha o serviço:*", 
+                          call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
 def processar_compra(call):
@@ -87,13 +97,11 @@ def processar_compra(call):
     custo = precos.get(serv, 1.50)
 
     if get_balance(user_id) < custo:
-        bot.answer_callback_query(call.id, "❌ Saldo insuficiente no Bot!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar ao servidor 5sim...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ *A solicitar número...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
-    
-    # URL com o nome técnico correto (ex: england)
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
@@ -102,7 +110,7 @@ def processar_compra(call):
         
         if r.status_code == 200:
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ *NÚMERO GERADO!*\n\n📱 Número: `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
+            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
             
             for _ in range(18):
                 time.sleep(10)
@@ -110,21 +118,26 @@ def processar_compra(call):
                 if c.get('sms'):
                     bot.send_message(call.message.chat.id, f"📩 *CÓDIGO:* `{c['sms'][0]['code']}`")
                     return
-            bot.send_message(call.message.chat.id, "⚠️ SMS atrasado. Tenta gerar outro número.")
+            bot.send_message(call.message.chat.id, "⚠️ SMS atrasado. Tente outro país.")
         else:
-            bot.send_message(call.message.chat.id, f"❌ Erro em {pais.upper()}: {res.get('errors', 'Sem stock')}\n\n💡 Tenta outro país (Inglaterra/EUA costumam ter sempre).")
+            bot.send_message(call.message.chat.id, f"❌ Sem stock em {pais.upper()}.\n\n💡 *Dica:* Inglaterra e EUA costumam ter sempre stock!")
     except:
         bot.send_message(call.message.chat.id, "❌ Erro de conexão.")
 
-# --- COMANDOS ADICIONAIS ---
+# --- OUTROS ---
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
     saldo = get_balance(message.from_user.id)
     bot.send_message(message.chat.id, f"👤 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
 
-@bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
+@bot.message_handler(func=lambda m: m.text == "💳 RECARREGA DE SALDO" or m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Envia comprovativo para @portugam50\nTeu ID: `{message.from_user.id}`")
+    msg = (f"💳 *RECARGA DE SALDO*\n"
+           f"━━━━━━━━━━━━━━━\n"
+           f"🔵 *MB WAY / IBAN:* @portugam50\n"
+           f"🟢 *USDT:* `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
+           f"🆔 Seu ID: `{message.from_user.id}`")
+    bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
