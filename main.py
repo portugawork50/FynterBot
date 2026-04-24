@@ -52,17 +52,17 @@ def welcome(message):
     update_balance(message.from_user.id, 0)
     texto = (
         f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
-        f"🛡️ _A tua solução segura para ativações SMS._\n"
+        f"🛡️ _Ativações SMS instantâneas e seguras._\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"✅ +10 Países de alta disponibilidade\n"
-        f"✅ Ativação instantânea\n"
-        f"✅ Suporte: @portugam50\n"
+        f"📍 +10 Países ativos\n"
+        f"⚡ Sistema 100% Automático\n"
+        f"👤 Suporte: @portugam50\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"👇 *Escolha uma opção no menu abaixo:* "
+        f"👇 *Escolha uma opção:* "
     )
     bot.send_message(message.chat.id, texto, reply_markup=menu_principal(), parse_mode="Markdown")
 
-# --- LISTA DE PAÍSES (10 OPÇÕES) ---
+# --- LISTA DE PAÍSES ---
 PAISES_LISTA = {
     "portugal": "🇵🇹 Portugal",
     "brazil": "🇧🇷 Brasil",
@@ -79,9 +79,7 @@ PAISES_LISTA = {
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    botoes = []
-    for cod, nome in PAISES_LISTA.items():
-        botoes.append(types.InlineKeyboardButton(nome, callback_data=f"p_{cod}"))
+    botoes = [types.InlineKeyboardButton(nome, callback_data=f"p_{cod}") for cod, nome in PAISES_LISTA.items()]
     markup.add(*botoes)
     bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
 
@@ -104,34 +102,41 @@ def processar_compra(call):
     custo = precos.get(serv, 1.50)
 
     if get_balance(user_id) < custo:
-        bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Saldo insuficiente no Bot!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar número ao servidor...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ *A contactar servidor 5sim...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        r = requests.get(url, headers=headers)
+        r = requests.get(url, headers=headers, timeout=15)
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 Pedido: `{res['id']}`\n\nAguardando o código SMS...")
+            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\n\nAguardando código SMS... (Pode demorar 2 min)")
             
-            # Loop de verificação (3 minutos)
+            # Verificação automática (Loop de 3 minutos)
             for _ in range(18):
                 time.sleep(10)
                 c = requests.get(f"https://5sim.net/v1/user/check/{res['id']}", headers=headers).json()
                 if c.get('sms'):
                     bot.send_message(call.message.chat.id, f"📩 *CÓDIGO:* `{c['sms'][0]['code']}`")
                     return
-            bot.send_message(call.message.chat.id, "⚠️ SMS demorou muito. Tente novamente.")
+            bot.send_message(call.message.chat.id, "⚠️ SMS não chegou a tempo. Verifique no site 5sim ou peça reembolso ao suporte.")
+        
+        elif r.status_code == 400:
+            bot.send_message(call.message.chat.id, "❌ Erro: Saldo insuficiente no site 5sim (fornecedor).")
+        elif r.status_code == 401:
+            bot.send_message(call.message.chat.id, "❌ Erro: API Key do 5sim está incorreta.")
         else:
-            bot.send_message(call.message.chat.id, f"❌ Sem stock em {pais.upper()} agora. Tente outro país!")
-    except:
-        bot.send_message(call.message.chat.id, "❌ Erro na API.")
+            bot.send_message(call.message.chat.id, f"❌ Sem stock de {serv} em {pais.upper()}. Tente outro país!")
 
-# --- OUTROS COMANDOS ---
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ Erro de conexão: {str(e)}")
+
+# --- COMANDOS EXTRAS ---
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
     saldo = get_balance(message.from_user.id)
@@ -151,7 +156,7 @@ def add_admin(message):
         try:
             p = message.text.split()
             update_balance(int(p[1]), float(p[2]))
-            bot.reply_to(message, "✅ Saldo adicionado!")
+            bot.reply_to(message, f"✅ Adicionado {p[2]}€ ao ID {p[1]}")
         except:
             bot.reply_to(message, "Use: /add ID VALOR")
 
