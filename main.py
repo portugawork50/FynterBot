@@ -41,7 +41,8 @@ def welcome(message):
     init_db()
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
-    bot.send_message(message.chat.id, "🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\nEscolha uma opção no menu:", reply_markup=markup, parse_mode="Markdown")
+    texto = "🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\nEscolha uma opção no menu abaixo:"
+    bot.send_message(message.chat.id, texto, reply_markup=markup, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
@@ -75,7 +76,6 @@ def processar_compra(call):
         return
 
     bot.edit_message_text(f"⏳ *Buscando número {pais.upper()}...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
-    
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
@@ -96,8 +96,8 @@ def processar_compra(call):
         else:
             erro = r.json().get('errors', ['Sem stock'])[0]
             bot.send_message(call.message.chat.id, f"❌ *FORNECEDOR:* {erro}")
-    except Exception as e:
-        bot.send_message(call.message.chat.id, "⚠️ Erro de conexão. Tente de novo.")
+    except:
+        bot.send_message(call.message.chat.id, "⚠️ Erro de conexão.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
@@ -109,6 +109,11 @@ def recarga(message):
     texto = f"💳 *RECARGA*\n\n🔵 MB WAY: @portugam50\n🟢 USDT: `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n🆔 Seu ID: `{message.from_user.id}`"
     bot.send_message(message.chat.id, texto, parse_mode="Markdown")
 
+# --- ESTA É A FUNÇÃO QUE FALTAVA ---
+@bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
+def suporte(message):
+    bot.send_message(message.chat.id, "🆘 *SUPORTE FYNTERBOT*\n\nPara recargas manuais ou dúvidas, fale com: @portugam50", parse_mode="Markdown")
+
 @bot.message_handler(commands=['add'])
 def add_saldo(message):
     if message.from_user.id == ADMIN_ID:
@@ -116,8 +121,7 @@ def add_saldo(message):
             p = message.text.split()
             update_balance(int(p[1]), float(p[2]))
             bot.reply_to(message, "✅ Saldo creditado!")
-        except:
-            bot.reply_to(message, "Use: /add ID VALOR")
+        except: pass
 
 if __name__ == "__main__":
     init_db()
