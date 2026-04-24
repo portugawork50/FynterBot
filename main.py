@@ -5,6 +5,7 @@ import requests
 import time
 import os
 
+# --- CONFIGURAÇÕES FIXAS ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
 ADMIN_ID = 8647771753
 API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1MjQ5ODQsImlhdCI6MTc3Njk4ODk4NCwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.uLu1Ggft6JUWcQJOlHehmY9CyZFxf4Ip8yRIoI7ExRlNa8h1ccN1M8JYp2z4D5MCJEFiqZL_e0X34PfQ82VBjSv5mIZS8pV_JfCoIpbBXb6ecoHYwaStmwGT633lqeFFHtEX1kBmVcOQvwb_38V2RwQdENwc4LidIbocIsqibIyk4eMHlfRFakJbxKEYQxXK7UlANL2sErMSNwj_Gs3j9CMHiWBeNAk2oFYnMsJHcx73102jwl7GcYa6Rl4IU2K2Qwc72g350Ws2tOQ48wltEt2K7Z3-S4v8l_RIiekLsUlRT692i0ffc8XBftAxz66PeDuPIVMCtQoljb5l5gEVwA'
@@ -35,16 +36,21 @@ def get_balance(user_id):
     conn.close()
     return row[0] if row else 0.0
 
+# --- MENUS ---
+def menu_principal():
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
+    return markup
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
     init_db()
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
-    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\nEscolha uma opção no menu:", reply_markup=markup)
+    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\n\nSeja bem-vindo ao *FynterBot*.\nEscolha uma opção no menu:", reply_markup=menu_principal(), parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
+    # Lista forçada para garantir que aparece
     markup.add(
         types.InlineKeyboardButton("🇬🇧 Inglaterra", callback_data="p_england"),
         types.InlineKeyboardButton("🇺🇸 EUA", callback_data="p_usa"),
@@ -53,7 +59,7 @@ def escolher_pais(message):
         types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france"),
         types.InlineKeyboardButton("🇪🇸 Espanha", callback_data="p_spain")
     )
-    bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS DO NÚMERO:*", reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("p_"))
 def escolher_servico(call):
@@ -63,7 +69,7 @@ def escolher_servico(call):
         types.InlineKeyboardButton("💬 WhatsApp - 1.50€", callback_data=f"buy_{pais}_whatsapp"),
         types.InlineKeyboardButton("✈️ Telegram - 1.20€", callback_data=f"buy_{pais}_telegram")
     )
-    bot.edit_message_text(f"📍 País: {pais.upper()}\n🚀 Escolha o serviço:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+    bot.edit_message_text(f"📍 País: {pais.upper()}\n🚀 *Escolha o serviço:*", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
 def processar_compra(call):
@@ -75,28 +81,23 @@ def processar_compra(call):
         bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar número ao 5sim...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ *A solicitar número ao sistema...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
-    # URL simplificada para evitar erros de conexão
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        # Aumentamos o tempo de espera (timeout) para 30 segundos
         r = requests.get(url, headers=headers, timeout=30)
+        res = r.json()
         
         if r.status_code == 200:
-            res = r.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
         else:
-            try:
-                msg_erro = r.json().get('errors', ['Erro desconhecido'])[0]
-            except:
-                msg_erro = "Sem stock ou erro no servidor."
-            bot.send_message(call.message.chat.id, f"❌ *ERRO:* {msg_erro}")
-    except requests.exceptions.RequestException:
-        bot.send_message(call.message.chat.id, "❌ O servidor do 5sim demorou a responder. Tente novamente em instantes.")
+            erro_msg = res.get('errors', ['Sem stock'])[0]
+            bot.send_message(call.message.chat.id, f"❌ *ERRO:* {erro_msg}\n\n💡 Tente Inglaterra ou EUA!")
+    except:
+        bot.send_message(call.message.chat.id, "❌ Falha na conexão com o 5sim. Tente novamente em 10 segundos.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
@@ -105,7 +106,15 @@ def conta(message):
 
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nID: `{message.from_user.id}`")
+    texto = (
+        "💳 *RECARGA GLOBAL*\n\n"
+        "🟢 *OPÇÃO 1: USDT (Rede TRC20)*\n"
+        "`TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
+        "🔵 *OPÇÃO 2: MB WAY / IBAN*\n"
+        "Fale com @portugam50\n\n"
+        "🆔 *Seu ID:* `{}`"
+    ).format(message.from_user.id)
+    bot.send_message(message.chat.id, texto, parse_mode="Markdown")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
@@ -119,4 +128,3 @@ def add_admin(message):
 if __name__ == "__main__":
     init_db()
     bot.infinity_polling()
-
