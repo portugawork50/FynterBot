@@ -5,9 +5,11 @@ import requests
 import time
 import os
 
+# --- CONFIGURAÇÕES ATUALIZADAS ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
 ADMIN_ID = 8647771753
-API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1MjQ5ODQsImlhdCI6MTc3Njk4ODk4NCwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.uLu1Ggft6JUWcQJOlHehmY9CyZFxf4Ip8yRIoI7ExRlNa8h1ccN1M8JYp2z4D5MCJEFiqZL_e0X34PfQ82VBjSv5mIZS8pV_JfCoIpbBXb6ecoHYwaStmwGT633lqeFFHtEX1kBmVcOQvwb_38V2RwQdENwc4LidIbocIsqibIyk4eMHlfRFakJbxKEYQxXK7UlANL2sErMSNwj_Gs3j9CMHiWBeNAk2oFYnMsJHcx73102jwl7GcYa6Rl4IU2K2Qwc72g350Ws2tOQ48wltEt2K7Z3-S4v8l_RIiekLsUlRT692i0ffc8XBftAxz66PeDuPIVMCtQoljb5l5gEVwA'
+# Nova chave que enviaste agora:
+API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1NjM2MDIsImlhdCI6MTc3NzAyNzYwMiwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.AFEiVz5FmQ9RU_x_GvO-hFGu9ThDWm-Co5yT1DjKruXLRrgxtpGsBOUJA-FvEUUDD08pkZ9DU0YBNMZQ1r89FYZDufXA7U5OoDbddzg-CbYVbh3sJaMAeKSaWTvlAIkf1b8Fx3eQMmmNC2GDrVHYT8Dr8LQU2m7kJAcoppnvkx-ZZ4sT1t8mJiUc6TD1Mb2rFGNzcRIGDI5-icO3kzKAMqfDmXBmS4N3_pZ5wCTNYZmvKkISwbI_hWJptPpi8WwEY0nL4wIJclSXMSpsgZDpei9D5jD_czf9Hf_DHqXAPJo5s7_dcD6UCBrJ-P74F7IspnPTh4nGhTlJgg89o8LNRQ'
 
 bot = telebot.TeleBot(TOKEN)
 DB_PATH = 'bot_database.db'
@@ -40,7 +42,7 @@ def welcome(message):
     init_db()
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
-    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\n\nUse o menu para começar:", reply_markup=markup)
+    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\nSistema atualizado com nova chave API. Escolha uma opção:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
@@ -75,31 +77,32 @@ def processar_compra(call):
         bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar...*", call.message.chat.id, call.message.message_id)
+    bot.edit_message_text("⏳ *A solicitar com nova chave...*", call.message.chat.id, call.message.message_id)
     
-    headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
+    headers = {
+        'Authorization': f'Bearer {API_5SIM}',
+        'Accept': 'application/json'
+    }
+    
+    # URL de alta prioridade
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
         response = requests.get(url, headers=headers, timeout=30)
         
-        # Se o 5sim responder OK (200)
         if response.status_code == 200:
             data = response.json()
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{data['phone']}`\n🆔 ID: `{data['id']}`\nAguardando SMS...")
+            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{data['phone']}`\n🆔 ID: `{data['id']}`\nAguardando código...")
         else:
-            # Se der erro, tentamos ler o motivo ou mostramos o código do erro
             try:
-                erro_json = response.json()
-                erro_txt = erro_json.get('errors', ['Sem stock ou indisponível'])[0]
+                erro = response.json().get('errors', ['Erro de Stock'])[0]
             except:
-                erro_txt = f"Erro {response.status_code} no servidor 5sim."
+                erro = f"Servidor em manutenção (Status {response.status_code})"
+            bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro}")
             
-            bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro_txt}\n💡 Tente outro país.")
-            
-    except Exception as e:
-        bot.send_message(call.message.chat.id, "⚠️ Ocorreu uma falha na rede. Tente novamente.")
+    except Exception:
+        bot.send_message(call.message.chat.id, "⚠️ Erro de rede. Tente novamente.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
@@ -108,7 +111,7 @@ def conta(message):
 
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nID: `{message.from_user.id}`")
+    bot.send_message(message.chat.id, f"💳 Envie comprovativo para @portugam50\nID: `{message.from_user.id}`")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
