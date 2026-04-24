@@ -50,25 +50,21 @@ def menu_principal():
 def welcome(message):
     init_db()
     update_balance(message.from_user.id, 0)
-    bot.send_message(message.chat.id, "🌟 *FynterBot Ativo!* 🌟\nEscolha uma opção:", reply_markup=menu_principal(), parse_mode="Markdown")
+    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\n\nBem-vindo ao *FynterBot*.\nEscolha uma opção:", reply_markup=menu_principal(), parse_mode="Markdown")
 
-# --- NOVO SISTEMA DE PAÍSES (MAIS SIMPLES) ---
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    # Adicionando os botões um por um para não haver erro
-    btn1 = types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="p_portugal")
-    btn2 = types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="p_brazil")
-    btn3 = types.InlineKeyboardButton("🇺🇸 EUA", callback_data="p_usa")
-    btn4 = types.InlineKeyboardButton("🇬🇧 Inglaterra", callback_data="p_england")
-    btn5 = types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france")
-    btn6 = types.InlineKeyboardButton("🇪🇸 Espanha", callback_data="p_spain")
-    
-    markup.add(btn1, btn2, btn3, btn4, btn5, btn6)
-    
+    markup.add(
+        types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="p_portugal"),
+        types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="p_brazil"),
+        types.InlineKeyboardButton("🇺🇸 EUA", callback_data="p_usa"),
+        types.InlineKeyboardButton("🇬🇧 Inglaterra", callback_data="p_england"),
+        types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france"),
+        types.InlineKeyboardButton("🇦🇴 Angola", callback_data="p_angola")
+    )
     bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
 
-# --- TRATAMENTO DOS CLIQUES ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith("p_"))
 def escolher_servico(call):
     pais = call.data.split("_")[1]
@@ -87,41 +83,54 @@ def processar_compra(call):
     custo = precos.get(serv, 1.50)
 
     if get_balance(user_id) < custo:
-        bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Saldo insuficiente no Bot!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ *A solicitar número...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
+    
+    # TENTATIVA 1: Usando "any" operadora
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
         r = requests.get(url, headers=headers, timeout=15)
+        
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
+            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguarde o SMS...")
         else:
-            bot.send_message(call.message.chat.id, f"❌ Sem stock em {pais.upper()}. Tente outro país!")
-    except:
-        bot.send_message(call.message.chat.id, "❌ Erro na API.")
+            # MOSTRAR O ERRO REAL PARA DIAGNÓSTICO
+            erro_msg = r.text
+            if "no free numbers" in erro_msg.lower():
+                bot.send_message(call.message.chat.id, f"❌ O fornecedor está sem números de {serv} para {pais.upper()} agora. Tente outro país.")
+            elif "not enough user balance" in erro_msg.lower():
+                bot.send_message(call.message.chat.id, "❌ Erro: O saldo no site 5sim.net acabou!")
+            elif "api key" in erro_msg.lower():
+                bot.send_message(call.message.chat.id, "❌ Erro: Chave API inválida.")
+            else:
+                bot.send_message(call.message.chat.id, f"❌ Erro do Sistema: {erro_msg}")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ Erro de Conexão: {str(e)}")
 
-# --- OUTROS ---
+# --- COMANDOS BÁSICOS ---
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
     saldo = get_balance(message.from_user.id)
-    bot.send_message(message.chat.id, f"💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
+    bot.send_message(message.chat.id, f"👤 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nID: `{message.from_user.id}`")
+    bot.send_message(message.chat.id, f"💳 Envie USDT ou peça MB WAY a @portugam50\nID: `{message.from_user.id}`")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
     if message.from_user.id == ADMIN_ID:
         try:
-            p = message.text.split()
-            update_balance(int(p[1]), float(p[2]))
-            bot.reply_to(message, "✅ OK!")
+            parts = message.text.split()
+            update_balance(int(parts[1]), float(parts[2]))
+            bot.reply_to(message, "✅ Saldo Adicionado!")
         except: pass
 
 if __name__ == "__main__":
