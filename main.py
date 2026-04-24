@@ -8,8 +8,8 @@ import os
 # --- CONFIGURAÇÕES ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
 ADMIN_ID = 8647771753
-# Esta é a chave JWT que aparece no teu print do 5sim
-API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1NjM2MDIsImlhdCI6MTc3NzAyNzYwMiwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.AFEiVz5FmQ9RU_x_GvO-hFGu9ThDWm-Co5yT1DjKruXLRrgxtpGsBOUJA-FvEUUDD08pkZ9DU0YBNMZQ1r89FYZDufXA7U5OoDbddzg-CbYVbh3sJaMAeKSaWTvlAIkf1b8Fx3eQMmmNC2GDrVHYT8Dr8LQU2m7kJAcoppnvkx-ZZ4sT1t8mJiUc6TD1Mb2rFGNzcRIGDI5-icO3kzKAMqfDmXBmS4N3_pZ5wCTNYZmvKkISwbI_hWJptPpi8WwEY0nL4wIJclSXMSpsgZDpei9D5jD_czf9Hf_DHqXAPJo5s7_dcD6UCBrJ-P74F7IspnPTh4nGhTlJgg89o8LNRQ'.strip()
+# Chave JWT que acabaste de enviar (limpa automaticamente espaços extras)
+API_5SIM = 'eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1NjM2MDIsImlhdCI6MTc3NzAyNzYwMiwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.AFEiVz5FmQ9RU_x_GvO-hFGu9ThDWm-Co5yT1DjKruXLRrgxtpGsBOUJA-FvEUUDD08pkZ9DU0YBNMZQ1r89FYZDufXA7U5OoDbddzg-CbYVbh3sJaMAeKSaWTvlAIkf1b8Fx3eQMmmNC2GDrVHYT8Dr8LQU2m7kJAcoppnvkx-ZZ4sT1t8mJiUc6TD1Mb2rFGNzcRIGDI5-icO3kzKAMqfDmXBmS4N3_pZ5wCTNYZmvKkISwbI_hWJptPpi8WwEY0nL4wIJclSXMSpsgZDpei9D5jD_czf9Hf_DHqXAPJo5s7_dcD6UCBrJ-P74F7IspnPTh4nGhTlJgg89o8LNRQ'.strip()
 
 bot = telebot.TeleBot(TOKEN)
 DB_PATH = 'bot_database.db'
@@ -47,9 +47,10 @@ def menu_principal():
 def welcome(message):
     init_db()
     texto = (
-        f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
-        f"🛡️ _Ativações SMS automáticas._\n"
+        f"🌟 *FYNTERBOT ATUALIZADO* 🌟\n\n"
+        f"🛡️ _Ativações SMS instantâneas._\n"
         f"━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Chave API Renovada\n"
         f"👤 Suporte: @portugam50\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"👇 *Escolha uma opção:* "
@@ -89,7 +90,7 @@ def processar_compra(call):
         bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A validar chave API...*", call.message.chat.id, call.message.message_id)
+    bot.edit_message_text("⏳ *A validar com o servidor...*", call.message.chat.id, call.message.message_id)
     
     headers = {
         'Authorization': f'Bearer {API_5SIM}',
@@ -99,19 +100,21 @@ def processar_compra(call):
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        r = requests.get(url, headers=headers, timeout=20)
+        r = requests.get(url, headers=headers, timeout=25)
         
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
-        elif r.status_code == 401:
-            bot.send_message(call.message.chat.id, "❌ *ERRO 401:* A Chave API foi rejeitada. Verifique no site do 5sim se a chave está ativa.")
         else:
-            erro = r.json().get('errors', ['Sem stock'])[0]
+            try:
+                erro = r.json().get('errors', ['Erro desconhecido'])[0]
+            except:
+                erro = f"Status {r.status_code}"
             bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro}")
+            
     except:
-        bot.send_message(call.message.chat.id, "⚠️ Erro de rede. Tente de novo.")
+        bot.send_message(call.message.chat.id, "⚠️ Erro de rede. Tente novamente.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
