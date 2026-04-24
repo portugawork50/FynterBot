@@ -43,75 +43,49 @@ def get_balance(user_id):
 # --- MENUS ---
 def menu_principal():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    btn1 = types.KeyboardButton("📱 GERAR NÚMERO")
-    btn2 = types.KeyboardButton("💳 RECARREGAR")
-    btn3 = types.KeyboardButton("👤 MINHA CONTA")
-    btn4 = types.KeyboardButton("🆘 SUPORTE")
-    markup.add(btn1, btn2, btn3, btn4)
+    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
     return markup
 
-# --- COMANDO START (O "BONITO") ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
     init_db()
     update_balance(message.from_user.id, 0)
-    
-    # Texto de Boas-vindas com Estilo
-    texto_boas_vindas = (
-        f"👋 *Olá, {message.from_user.first_name}!*\n\n"
-        f"Bem-vindo ao *FynterBot* 🤖\n"
-        f"A sua plataforma nº1 para ativações de SMS!\n\n"
-        f"⚡️ *Rápido | Automático | Seguro*\n\n"
-        f"Escolha uma opção no menu abaixo para começar: 👇"
+    texto = (
+        f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
+        f"🛡️ _A tua solução segura para ativações SMS._\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✅ +10 Países de alta disponibilidade\n"
+        f"✅ Ativação instantânea\n"
+        f"✅ Suporte: @portugam50\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"👇 *Escolha uma opção no menu abaixo:* "
     )
-    
-    bot.send_message(
-        message.chat.id, 
-        texto_boas_vindas, 
-        reply_markup=menu_principal(), 
-        parse_mode="Markdown"
-    )
+    bot.send_message(message.chat.id, texto, reply_markup=menu_principal(), parse_mode="Markdown")
 
-# --- OUTROS COMANDOS ---
-@bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
-def conta(message):
-    saldo = get_balance(message.from_user.id)
-    msg = (
-        f"👤 *DADOS DA CONTA*\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"🆔 *ID:* `{message.from_user.id}`\n"
-        f"💰 *SALDO:* `{saldo:.2f} €`"
-    )
-    bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+# --- LISTA DE PAÍSES (10 OPÇÕES) ---
+PAISES_LISTA = {
+    "portugal": "🇵🇹 Portugal",
+    "brazil": "🇧🇷 Brasil",
+    "usa": "🇺🇸 EUA",
+    "england": "🇬🇧 Inglaterra",
+    "france": "🇫🇷 França",
+    "spain": "🇪🇸 Espanha",
+    "netherlands": "🇳🇱 Holanda",
+    "germany": "🇩🇪 Alemanha",
+    "canada": "🇨🇦 Canadá",
+    "angola": "🇦🇴 Angola"
+}
 
-@bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
-def recarga(message):
-    msg = (
-        f"💳 *RECARGA DE SALDO*\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"🏦 *MÉTODOS ACEITES:*\n\n"
-        f"🟢 *USDT (TRC20):*\n`TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
-        f"🔵 *MB WAY / IBAN:*\nContacte @portugam50\n\n"
-        f"⚠️ *Nota:* Envie o comprovativo e o seu ID: `{message.from_user.id}`"
-    )
-    bot.send_message(message.chat.id, msg, parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
-def suporte(message):
-    bot.send_message(message.chat.id, "🆘 *SUPORTE TÉCNICO*\n\nPrecisa de ajuda? Clique aqui: @portugam50", parse_mode="Markdown")
-
-# --- COMPRA DE NÚMEROS ---
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="pais_brazil"),
-        types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="pais_portugal"),
-        types.InlineKeyboardButton("🇺🇸 EUA", callback_data="pais_usa")
-    )
+    botoes = []
+    for cod, nome in PAISES_LISTA.items():
+        botoes.append(types.InlineKeyboardButton(nome, callback_data=f"p_{cod}"))
+    markup.add(*botoes)
     bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("pais_"))
+@bot.callback_query_handler(func=lambda call: call.data.startswith("p_"))
 def escolher_servico(call):
     pais = call.data.split("_")[1]
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -119,7 +93,7 @@ def escolher_servico(call):
         types.InlineKeyboardButton("💬 WhatsApp - 1.50€", callback_data=f"buy_{pais}_whatsapp"),
         types.InlineKeyboardButton("✈️ Telegram - 1.20€", callback_data=f"buy_{pais}_telegram")
     )
-    bot.edit_message_text(f"📍 *País:* {pais.upper()}\n🚀 *Selecione o Serviço:*", 
+    bot.edit_message_text(f"📍 País: *{pais.upper()}*\n🚀 *Selecione o serviço:*", 
                           call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
@@ -130,10 +104,10 @@ def processar_compra(call):
     custo = precos.get(serv, 1.50)
 
     if get_balance(user_id) < custo:
-        bot.answer_callback_query(call.id, "❌ Saldo Insuficiente!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A gerar número...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ *A solicitar número ao servidor...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
@@ -142,28 +116,42 @@ def processar_compra(call):
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ *NÚMERO GERADO!*\n\n📱 *Número:* `{res['phone']}`\n🆔 *Pedido:* `{res['id']}`\n\nAguarde o código aqui...", parse_mode="Markdown")
+            bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 Pedido: `{res['id']}`\n\nAguardando o código SMS...")
             
-            for _ in range(15):
-                time.sleep(15)
+            # Loop de verificação (3 minutos)
+            for _ in range(18):
+                time.sleep(10)
                 c = requests.get(f"https://5sim.net/v1/user/check/{res['id']}", headers=headers).json()
                 if c.get('sms'):
-                    bot.send_message(call.message.chat.id, f"📩 *CÓDIGO:* `{c['sms'][0]['code']}`", parse_mode="Markdown")
+                    bot.send_message(call.message.chat.id, f"📩 *CÓDIGO:* `{c['sms'][0]['code']}`")
                     return
-            bot.send_message(call.message.chat.id, "⚠️ SMS atrasado. Verifique o site ou tente novamente.")
+            bot.send_message(call.message.chat.id, "⚠️ SMS demorou muito. Tente novamente.")
         else:
-            bot.send_message(call.message.chat.id, "❌ Sem stock no momento.")
+            bot.send_message(call.message.chat.id, f"❌ Sem stock em {pais.upper()} agora. Tente outro país!")
     except:
-        bot.send_message(call.message.chat.id, "❌ Erro de conexão.")
+        bot.send_message(call.message.chat.id, "❌ Erro na API.")
 
-# --- ADMIN ---
+# --- OUTROS COMANDOS ---
+@bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
+def conta(message):
+    saldo = get_balance(message.from_user.id)
+    bot.send_message(message.chat.id, f"👤 *DADOS DA CONTA*\n\n🆔 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
+def recarga(message):
+    bot.send_message(message.chat.id, f"💳 *RECARGA*\n\n🟢 USDT (TRC20): `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n🔵 MB WAY / IBAN: @portugam50\n\n🆔 Teu ID: `{message.from_user.id}`", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
+def suporte(message):
+    bot.send_message(message.chat.id, "🆘 *SUPORTE:* @portugam50")
+
 @bot.message_handler(commands=['add'])
-def add_saldo(message):
+def add_admin(message):
     if message.from_user.id == ADMIN_ID:
         try:
-            args = message.text.split()
-            update_balance(int(args[1]), float(args[2]))
-            bot.reply_to(message, "✅ Saldo adicionado com sucesso!")
+            p = message.text.split()
+            update_balance(int(p[1]), float(p[2]))
+            bot.reply_to(message, "✅ Saldo adicionado!")
         except:
             bot.reply_to(message, "Use: /add ID VALOR")
 
