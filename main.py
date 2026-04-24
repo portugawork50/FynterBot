@@ -6,19 +6,17 @@ import time
 import os
 
 # --- CONFIGURAÇÕES ---
-# O bot tenta ler das variáveis do Railway, se não houver, usa os valores padrão
 TOKEN = os.getenv('BOT_TOKEN', '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho')
 ADMIN_ID = int(os.getenv('ADMIN_ID', 8647771753))
 API_5SIM = os.getenv('API_5SIM', 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1MjQ5ODQsImlhdCI6MTc3Njk4ODk4NCwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.uLu1Ggft6JUWcQJOlHehmY9CyZFxf4Ip8yRIoI7ExRlNa8h1ccN1M8JYp2z4D5MCJEFiqZL_e0X34PfQ82VBjSv5mIZS8pV_JfCoIpbBXb6ecoHYwaStmwGT633lqeFFHtEX1kBmVcOQvwb_38V2RwQdENwc4LidIbocIsqibIyk4eMHlfRFakJbxKEYQxXK7UlANL2sErMSNwj_Gs3j9CMHiWBeNAk2oFYnMsJHcx73102jwl7GcYa6Rl4IU2K2Qwc72g350Ws2tOQ48wltEt2K7Z3-S4v8l_RIiekLsUlRT692i0ffc8XBftAxz66PeDuPIVMCtQoljb5l5gEVwA')
 
 bot = telebot.TeleBot(TOKEN)
 
-# Caminho do banco de dados (ajustado para funcionar com ou sem volume)
+# Banco de Dados
 DB_PATH = 'bot_database.db'
 if os.path.exists('/app/data'):
     DB_PATH = '/app/data/bot_database.db'
 
-# --- FUNÇÕES DE BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
@@ -48,13 +46,11 @@ def menu_principal():
     markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
     return markup
 
-# --- COMANDOS ---
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
+def welcome(message):
     init_db()
     update_balance(message.from_user.id, 0)
-    bot.send_message(message.chat.id, "👋 Bem-vindo ao **FynterBot**! \nUse o menu abaixo para navegar.", 
-                     reply_markup=menu_principal(), parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🚀 **FynterBot Ativo!**\n\nNúmeros virtuais instantâneos.", reply_markup=menu_principal(), parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
@@ -65,37 +61,35 @@ def conta(message):
 def recarga(message):
     msg = (f"💳 **RECARGA DE SALDO**\n\n"
            f"🟢 **USDT (TRC20):**\n`TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
-           f"🔵 **MB WAY / IBAN:**\nFale com @pobrerico__\n\n"
-           f"⚠️ Envie o comprovativo e o seu ID:\n🆔 ID: `{message.from_user.id}`")
+           f"🔵 **MB WAY / IBAN:**\nFale com @portugam50\n\n"
+           f"🆔 Seu ID: `{message.from_user.id}`")
     bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
 def suporte(message):
-    bot.send_message(message.chat.id, "🆘 Precisa de ajuda? Contacte: @pobrerico__")
+    bot.send_message(message.chat.id, "🆘 Dúvidas? Contacte o admin: @portugam50")
 
-# --- ADMIN: ADICIONAR SALDO ---
+# --- COMANDO ADMIN ---
 @bot.message_handler(commands=['add'])
 def add_saldo(message):
     if message.from_user.id == ADMIN_ID:
         try:
-            # Formato: /add ID VALOR
             args = message.text.split()
             target_id = int(args[1])
             valor = float(args[2])
             update_balance(target_id, valor)
-            bot.reply_to(message, f"✅ Sucesso! Adicionado **{valor}€** ao ID `{target_id}`", parse_mode="Markdown")
-            bot.send_message(target_id, f"🎉 **Saldo creditado!**\nForam adicionados **{valor}€** à sua conta.")
-        except Exception as e:
-            bot.reply_to(message, "❌ Erro. Use: `/add ID VALOR` \nExemplo: `/add 8647771753 10`", parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "🚫 Acesso Negado.")
+            bot.reply_to(message, f"✅ Adicionado **{valor}€** ao ID `{target_id}`", parse_mode="Markdown")
+            bot.send_message(target_id, f"🎉 **Recarga Confirmada!**\nForam adicionados **{valor}€** à sua conta.")
+        except:
+            bot.reply_to(message, "Use: `/add ID VALOR`")
 
-# --- GERAR NÚMEROS (INLINE) ---
+# --- COMPRA DE NÚMEROS ---
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="pais_brazil"),
-               types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="pais_portugal"))
+               types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="pais_portugal"),
+               types.InlineKeyboardButton("🇺🇸 EUA", callback_data="pais_usa"))
     bot.send_message(message.chat.id, "🌍 Escolha o país:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("pais_"))
@@ -110,15 +104,13 @@ def escolher_servico(call):
 def processar_compra(call):
     _, pais, serv = call.data.split("_")
     user_id = call.from_user.id
-    # Preços fixos para teste
-    precos = {"whatsapp": 1.50, "telegram": 1.20}
-    custo = precos.get(serv, 2.0)
+    custo = 1.50 # Ajuste os preços conforme necessário
 
     if get_balance(user_id) < custo:
         bot.answer_callback_query(call.id, "❌ Saldo Insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ Conectando ao 5sim...", call.message.chat.id, call.message.message_id)
+    bot.edit_message_text("⏳ Gerando número no 5sim...", call.message.chat.id, call.message.message_id)
     
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
@@ -128,14 +120,21 @@ def processar_compra(call):
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
-            bot.send_message(call.message.chat.id, f"✅ **NÚMERO:** `{res['phone']}`\n🆔 Pedido: `{res['id']}`\nAguarde o SMS chegar...", parse_mode="Markdown")
+            bot.send_message(call.message.chat.id, f"✅ **NÚMERO:** `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
+            
+            # Loop Simples de Verificação (10 vezes a cada 15 seg)
+            for _ in range(10):
+                time.sleep(15)
+                c = requests.get(f"https://5sim.net/v1/user/check/{res['id']}", headers=headers).json()
+                if c.get('sms'):
+                    bot.send_message(call.message.chat.id, f"📩 **CÓDIGO:** `{c['sms'][0]['code']}`")
+                    return
+            bot.send_message(call.message.chat.id, "⚠️ SMS demorou muito. Verifique no site do 5sim.")
         else:
-            bot.send_message(call.message.chat.id, "❌ Sem números disponíveis ou saldo insuficiente no 5sim.")
+            bot.send_message(call.message.chat.id, "❌ Sem números disponíveis no momento.")
     except:
-        bot.send_message(call.message.chat.id, "❌ Erro ao processar pedido.")
+        bot.send_message(call.message.chat.id, "❌ Erro na API.")
 
-# --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
     init_db()
-    print("Bot rodando...")
     bot.infinity_polling()
