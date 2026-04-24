@@ -40,7 +40,7 @@ def welcome(message):
     init_db()
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
-    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\nEscolha uma opção:", reply_markup=markup)
+    bot.send_message(message.chat.id, f"👋 Olá {message.from_user.first_name}!\nEscolha uma opção no menu:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
@@ -51,7 +51,7 @@ def escolher_pais(message):
         types.InlineKeyboardButton("🇵🇹 Portugal", callback_data="p_portugal"),
         types.InlineKeyboardButton("🇧🇷 Brasil", callback_data="p_brazil"),
         types.InlineKeyboardButton("🇫🇷 França", callback_data="p_france"),
-        types.InlineKeyboardButton("🇦🇴 Angola", callback_data="p_angola")
+        types.InlineKeyboardButton("🇪🇸 Espanha", callback_data="p_spain")
     )
     bot.send_message(message.chat.id, "🌍 *SELECIONE O PAÍS:*", reply_markup=markup, parse_mode="Markdown")
 
@@ -72,28 +72,31 @@ def processar_compra(call):
     custo = 1.50 if serv == "whatsapp" else 1.20
 
     if get_balance(user_id) < custo:
-        bot.answer_callback_query(call.id, "❌ Saldo insuficiente no BOT!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
     bot.edit_message_text("⏳ *A solicitar número ao 5sim...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
-    # Mudamos 'any' para 'virtual2' ou 'any' mas com tratamento de erro
+    # URL simplificada para evitar erros de conexão
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        r = requests.get(url, headers=headers, timeout=25)
-        res = r.json()
+        # Aumentamos o tempo de espera (timeout) para 30 segundos
+        r = requests.get(url, headers=headers, timeout=30)
         
         if r.status_code == 200:
+            res = r.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
         else:
-            # Se der erro, vamos mostrar o que o 5sim disse
-            erro_real = res.get('errors', ['Sem Stock'])[0]
-            bot.send_message(call.message.chat.id, f"❌ *ERRO DO 5SIM:* `{erro_real}`\n\n💡 Tente outro país ou Telegram.")
-    except:
-        bot.send_message(call.message.chat.id, "❌ Erro de conexão com o servidor.")
+            try:
+                msg_erro = r.json().get('errors', ['Erro desconhecido'])[0]
+            except:
+                msg_erro = "Sem stock ou erro no servidor."
+            bot.send_message(call.message.chat.id, f"❌ *ERRO:* {msg_erro}")
+    except requests.exceptions.RequestException:
+        bot.send_message(call.message.chat.id, "❌ O servidor do 5sim demorou a responder. Tente novamente em instantes.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
@@ -102,7 +105,7 @@ def conta(message):
 
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nTeu ID: `{message.from_user.id}`")
+    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nID: `{message.from_user.id}`")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
@@ -116,3 +119,4 @@ def add_admin(message):
 if __name__ == "__main__":
     init_db()
     bot.infinity_polling()
+
