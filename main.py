@@ -8,8 +8,7 @@ import os
 # --- CONFIGURAÇÕES ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
 ADMIN_ID = 8647771753
-# Chave JWT que acabaste de enviar (limpa automaticamente espaços extras)
-API_5SIM = 'eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1NjM2MDIsImlhdCI6MTc3NzAyNzYwMiwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.AFEiVz5FmQ9RU_x_GvO-hFGu9ThDWm-Co5yT1DjKruXLRrgxtpGsBOUJA-FvEUUDD08pkZ9DU0YBNMZQ1r89FYZDufXA7U5OoDbddzg-CbYVbh3sJaMAeKSaWTvlAIkf1b8Fx3eQMmmNC2GDrVHYT8Dr8LQU2m7kJAcoppnvkx-ZZ4sT1t8mJiUc6TD1Mb2rFGNzcRIGDI5-icO3kzKAMqfDmXBmS4N3_pZ5wCTNYZmvKkISwbI_hWJptPpi8WwEY0nL4wIJclSXMSpsgZDpei9D5jD_czf9Hf_DHqXAPJo5s7_dcD6UCBrJ-P74F7IspnPTh4nGhTlJgg89o8LNRQ'.strip()
+API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1NjM2MDIsImlhdCI6MTc3Njk4ODk4NCwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.AFEiVz5FmQ9RU_x_GvO-hFGu9ThDWm-Co5yT1DjKruXLRrgxtpGsBOUJA-FvEUUDD08pkZ9DU0YBNMZQ1r89FYZDufXA7U5OoDbddzg-CbYVbh3sJaMAeKSaWTvlAIkf1b8Fx3eQMmmNC2GDrVHYT8Dr8LQU2m7kJAcoppnvkx-ZZ4sT1t8mJiUc6TD1Mb2rFGNzcRIGDI5-icO3kzKAMqfDmXBmS4N3_pZ5wCTNYZmvKkISwbI_hWJptPpi8WwEY0nL4wIJclSXMSpsgZDpei9D5jD_czf9Hf_DHqXAPJo5s7_dcD6UCBrJ-P74F7IspnPTh4nGhTlJgg89o8LNRQ'.strip()
 
 bot = telebot.TeleBot(TOKEN)
 DB_PATH = 'bot_database.db'
@@ -37,25 +36,20 @@ def get_balance(user_id):
     conn.close()
     return row[0] if row else 0.0
 
-# --- MENUS ---
-def menu_principal():
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
-    return markup
-
 @bot.message_handler(commands=['start'])
 def welcome(message):
     init_db()
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
     texto = (
-        f"🌟 *FYNTERBOT ATUALIZADO* 🌟\n\n"
-        f"🛡️ _Ativações SMS instantâneas._\n"
+        f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
+        f"🛡️ _Ativações SMS automáticas e seguras._\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"✅ Chave API Renovada\n"
         f"👤 Suporte: @portugam50\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"👇 *Escolha uma opção:* "
+        f"👇 *Escolha uma opção no menu:* "
     )
-    bot.send_message(message.chat.id, texto, reply_markup=menu_principal(), parse_mode="Markdown")
+    bot.send_message(message.chat.id, texto, reply_markup=markup, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
@@ -90,40 +84,46 @@ def processar_compra(call):
         bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A validar com o servidor...*", call.message.chat.id, call.message.message_id)
-    
-    headers = {
-        'Authorization': f'Bearer {API_5SIM}',
-        'Accept': 'application/json'
-    }
-    
+    bot.edit_message_text("⏳ *A solicitar...*", call.message.chat.id, call.message.message_id)
+    headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
         r = requests.get(url, headers=headers, timeout=25)
-        
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
         else:
-            try:
-                erro = r.json().get('errors', ['Erro desconhecido'])[0]
-            except:
-                erro = f"Status {r.status_code}"
-            bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro}")
-            
+            bot.send_message(call.message.chat.id, f"❌ Erro: {r.status_code}. Tente outro país.")
     except:
-        bot.send_message(call.message.chat.id, "⚠️ Erro de rede. Tente novamente.")
+        bot.send_message(call.message.chat.id, "⚠️ Erro de rede.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
     saldo = get_balance(message.from_user.id)
-    bot.send_message(message.chat.id, f"👤 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
+    bot.send_message(message.chat.id, f"👤 *DADOS DA CONTA*\n\n🆔 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
 
+# --- MENU DE RECARGA CORRIGIDO ---
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    bot.send_message(message.chat.id, f"💳 Recarga via @portugam50\nID: `{message.from_user.id}`")
+    texto_recarga = (
+        "💳 *RECARGA DE SALDO*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "🔵 *MB WAY / IBAN / PAYPAL:*\n"
+        "Entre em contacto com o suporte para receber os dados de pagamento:\n"
+        "👉 @portugam50\n\n"
+        "🟢 *CRIPTO (USDT - TRC20):*\n"
+        "Endereço para depósito:\n"
+        "`TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
+        "⚠️ *AVISO:* Após o pagamento, envie o comprovativo e o seu ID abaixo.\n\n"
+        f"🆔 *Seu ID:* `{message.from_user.id}`"
+    )
+    bot.send_message(message.chat.id, texto_recarga, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
+def suporte(message):
+    bot.send_message(message.chat.id, "🆘 *Dúvidas ou Problemas?*\nFale com o administrador: @portugam50", parse_mode="Markdown")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
@@ -131,8 +131,9 @@ def add_admin(message):
         try:
             p = message.text.split()
             update_balance(int(p[1]), float(p[2]))
-            bot.reply_to(message, "✅ Saldo adicionado!")
-        except: pass
+            bot.reply_to(message, f"✅ Saldo de {p[2]}€ adicionado com sucesso ao ID {p[1]}!")
+        except:
+            bot.reply_to(message, "❌ Use: /add ID VALOR")
 
 if __name__ == "__main__":
     init_db()
