@@ -36,20 +36,25 @@ def get_balance(user_id):
     conn.close()
     return row[0] if row else 0.0
 
+# --- MENUS ---
+def menu_principal():
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
+    return markup
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
     init_db()
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("📱 GERAR NÚMERO", "💳 RECARREGAR", "👤 MINHA CONTA", "🆘 SUPORTE")
     texto = (
         f"🌟 *BEM-VINDO AO FYNTERBOT!* 🌟\n\n"
         f"🛡️ _Ativações SMS automáticas e seguras._\n"
         f"━━━━━━━━━━━━━━━━━━\n"
+        f"📍 +10 Países Disponíveis\n"
         f"👤 Suporte: @portugam50\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"👇 *Escolha uma opção no menu:* "
+        f"👇 *Escolha uma opção no menu abaixo:* "
     )
-    bot.send_message(message.chat.id, texto, reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(message.chat.id, texto, reply_markup=menu_principal(), parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "📱 GERAR NÚMERO")
 def escolher_pais(message):
@@ -72,58 +77,65 @@ def escolher_servico(call):
         types.InlineKeyboardButton("💬 WhatsApp - 1.50€", callback_data=f"buy_{pais}_whatsapp"),
         types.InlineKeyboardButton("✈️ Telegram - 1.20€", callback_data=f"buy_{pais}_telegram")
     )
-    bot.edit_message_text(f"📍 País: {pais.upper()}\n🚀 Escolha o serviço:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+    bot.edit_message_text(f"📍 País: {pais.upper()}\n🚀 *Escolha o serviço:*", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
 def processar_compra(call):
     _, pais, serv = call.data.split("_")
     user_id = call.from_user.id
-    custo = 1.50 if serv == "whatsapp" else 1.20
+    precos = {"whatsapp": 1.50, "telegram": 1.20}
+    custo = precos.get(serv, 1.50)
 
     if get_balance(user_id) < custo:
         bot.answer_callback_query(call.id, "❌ Saldo insuficiente!", show_alert=True)
         return
 
-    bot.edit_message_text("⏳ *A solicitar...*", call.message.chat.id, call.message.message_id)
+    bot.edit_message_text("⏳ *A solicitar número...*", call.message.chat.id, call.message.message_id)
     headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        r = requests.get(url, headers=headers, timeout=25)
+        r = requests.get(url, headers=headers, timeout=30)
         if r.status_code == 200:
             res = r.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{res['phone']}`\n🆔 ID: `{res['id']}`\nAguardando SMS...")
+            
+            # Loop de verificação simples
+            for _ in range(15):
+                time.sleep(15)
+                c = requests.get(f"https://5sim.net/v1/user/check/{res['id']}", headers=headers).json()
+                if c.get('sms'):
+                    bot.send_message(call.message.chat.id, f"📩 *CÓDIGO:* `{c['sms'][0]['code']}`")
+                    return
         else:
-            bot.send_message(call.message.chat.id, f"❌ Erro: {r.status_code}. Tente outro país.")
+            bot.send_message(call.message.chat.id, f"❌ Sem stock em {pais.upper()} agora. Tente outro país!")
     except:
-        bot.send_message(call.message.chat.id, "⚠️ Erro de rede.")
+        bot.send_message(call.message.chat.id, "⚠️ Erro de rede. Tente de novo.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
     saldo = get_balance(message.from_user.id)
     bot.send_message(message.chat.id, f"👤 *DADOS DA CONTA*\n\n🆔 ID: `{message.from_user.id}`\n💰 Saldo: `{saldo:.2f} €`", parse_mode="Markdown")
 
-# --- MENU DE RECARGA CORRIGIDO ---
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
     texto_recarga = (
         "💳 *RECARGA DE SALDO*\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
-        "🔵 *MB WAY / IBAN / PAYPAL:*\n"
-        "Entre em contacto com o suporte para receber os dados de pagamento:\n"
+        "🔵 *MB WAY / IBAN:*\n"
+        "Fale com o suporte para pagar:\n"
         "👉 @portugam50\n\n"
-        "🟢 *CRIPTO (USDT - TRC20):*\n"
-        "Endereço para depósito:\n"
+        "🟢 *USDT (TRC20):*\n"
         "`TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n"
-        "⚠️ *AVISO:* Após o pagamento, envie o comprovativo e o seu ID abaixo.\n\n"
+        "⚠️ *AVISO:* Envie o comprovativo e o seu ID abaixo.\n\n"
         f"🆔 *Seu ID:* `{message.from_user.id}`"
     )
     bot.send_message(message.chat.id, texto_recarga, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "🆘 SUPORTE")
 def suporte(message):
-    bot.send_message(message.chat.id, "🆘 *Dúvidas ou Problemas?*\nFale com o administrador: @portugam50", parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🆘 *SUPORTE:* @portugam50")
 
 @bot.message_handler(commands=['add'])
 def add_admin(message):
@@ -131,9 +143,8 @@ def add_admin(message):
         try:
             p = message.text.split()
             update_balance(int(p[1]), float(p[2]))
-            bot.reply_to(message, f"✅ Saldo de {p[2]}€ adicionado com sucesso ao ID {p[1]}!")
-        except:
-            bot.reply_to(message, "❌ Use: /add ID VALOR")
+            bot.reply_to(message, "✅ Saldo creditado!")
+        except: pass
 
 if __name__ == "__main__":
     init_db()
