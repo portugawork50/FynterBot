@@ -5,7 +5,6 @@ import requests
 import time
 import os
 
-# --- CONFIGURAÇÕES ---
 TOKEN = '8338751670:AAEe17MTCw2uEBCGz2S68eXkdlpHLgf1Gho'
 ADMIN_ID = 8647771753
 API_5SIM = 'EyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDg1MjQ5ODQsImlhdCI6MTc3Njk4ODk4NCwicmF5IjoiN2EyZTM1ZTA2NjJjNTUzM2QzYmI3M2ZhMzgzNWRiNTgiLCJzdWIiOjQwMDA4MjJ9.uLu1Ggft6JUWcQJOlHehmY9CyZFxf4Ip8yRIoI7ExRlNa8h1ccN1M8JYp2z4D5MCJEFiqZL_e0X34PfQ82VBjSv5mIZS8pV_JfCoIpbBXb6ecoHYwaStmwGT633lqeFFHtEX1kBmVcOQvwb_38V2RwQdENwc4LidIbocIsqibIyk4eMHlfRFakJbxKEYQxXK7UlANL2sErMSNwj_Gs3j9CMHiWBeNAk2oFYnMsJHcx73102jwl7GcYa6Rl4IU2K2Qwc72g350Ws2tOQ48wltEt2K7Z3-S4v8l_RIiekLsUlRT692i0ffc8XBftAxz66PeDuPIVMCtQoljb5l5gEVwA'
@@ -78,33 +77,29 @@ def processar_compra(call):
 
     bot.edit_message_text("⏳ *A solicitar...*", call.message.chat.id, call.message.message_id)
     
-    # Header de Autenticação
-    headers = {
-        'Authorization': f'Bearer {API_5SIM}',
-        'Accept': 'application/json',
-    }
-    
-    # Tenta comprar o número (URL direta)
+    headers = {'Authorization': f'Bearer {API_5SIM}', 'Accept': 'application/json'}
     url = f"https://5sim.net/v1/user/buy/activation/{pais}/any/{serv}"
     
     try:
-        # Aumentamos o timeout para lidar com a lentidão da API
-        response = requests.get(url, headers=headers, timeout=40)
+        response = requests.get(url, headers=headers, timeout=30)
         
+        # Se o 5sim responder OK (200)
         if response.status_code == 200:
             data = response.json()
             update_balance(user_id, -custo)
             bot.send_message(call.message.chat.id, f"✅ *NÚMERO:* `{data['phone']}`\n🆔 ID: `{data['id']}`\nAguardando SMS...")
         else:
-            # Se não for 200, mostra o erro que o 5sim enviou
+            # Se der erro, tentamos ler o motivo ou mostramos o código do erro
             try:
-                erro = response.json().get('errors', ['Erro desconhecido'])[0]
+                erro_json = response.json()
+                erro_txt = erro_json.get('errors', ['Sem stock ou indisponível'])[0]
             except:
-                erro = "Resposta inválida do servidor."
-            bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro}")
+                erro_txt = f"Erro {response.status_code} no servidor 5sim."
+            
+            bot.send_message(call.message.chat.id, f"❌ *5SIM DIZ:* {erro_txt}\n💡 Tente outro país.")
             
     except Exception as e:
-        bot.send_message(call.message.chat.id, "⚠️ Conexão instável. Tenta novamente em 5 segundos.")
+        bot.send_message(call.message.chat.id, "⚠️ Ocorreu uma falha na rede. Tente novamente.")
 
 @bot.message_handler(func=lambda m: m.text == "👤 MINHA CONTA")
 def conta(message):
