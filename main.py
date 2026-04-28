@@ -106,7 +106,7 @@ def conta(message):
 
 @bot.message_handler(func=lambda m: m.text == "💳 RECARREGAR")
 def recarga(message):
-    texto = f"💳 *RECARGA*\n\n🔵 MB WAY: @portugam50\n🟢 USDT: `TWxHqzW9MBAymeBnqx3WX6VyNUPKMmhoXU`\n\n🆔 Seu ID: `{message.from_user.id}`"
+    texto = f"💳 *RECARGA*\n\n🔵 MB WAY: @portugam50\n🟢 USDT: `0x5c00564A2488Adf6F8ADD1fc3a7B7910Bad2fb4C`\n\n🆔 Seu ID: `{message.from_user.id}`"
     bot.send_message(message.chat.id, texto, parse_mode="Markdown")
 
 # --- ESTA É A FUNÇÃO QUE FALTAVA ---
